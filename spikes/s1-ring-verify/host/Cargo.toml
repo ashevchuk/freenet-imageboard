@@ -1,0 +1,12 @@
+[package]
+name = "host"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+lsag = { path = "../lsag" }
+curve25519-dalek = { version = "4.1", default-features = false, features = ["alloc"] }
+ed25519-dalek = { version = "2.1", default-features = false }
+sha2 = { version = "0.10", default-features = false }
+wasmtime = { version = "47", default-features = false, features = ["cranelift", "runtime", "std"] }

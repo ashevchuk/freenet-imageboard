@@ -1,0 +1,12 @@
+[workspace]
+members = ["lsag", "guest", "host"]
+resolver = "2"
+
+[profile.release]
+opt-level = 3
+panic = "abort"
+codegen-units = 1
+
+[profile.size]
+inherits = "release"
+opt-level = "z"
