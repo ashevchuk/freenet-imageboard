@@ -10,9 +10,14 @@ An independent project, not affiliated with the Freenet project.
 Design stage. No contract, delegate or UI exists yet. The repository holds
 this description and the benchmark harness behind the numbers below.
 
-Posting depends on a ring-signing operation that the
-[Ghostkey Vault](https://github.com/freenet/ghostkeys) does not have yet.
-Without it the design cannot launch on the public network.
+Two things are unresolved:
+
+- Posting depends on a ring-signing operation that the
+  [Ghostkey Vault](https://github.com/freenet/ghostkeys) does not have yet
+  ([freenet/ghostkeys#65](https://github.com/freenet/ghostkeys/issues/65)).
+  Without it the design cannot launch on the public network.
+- The thread catalog has no working design. See
+  [Catalog ordering](#catalog-ordering-open-problem).
 
 ## Design
 
@@ -33,11 +38,12 @@ The ID is the key image of a linkable ring signature (LSAG) over ghost
 public keys on edwards25519:
 
 ```
-I = a * Hp(caller || "post" || thread_id)
+I = a * Hp(caller || "post" || thread_anchor)
 ```
 
-where `a` is the ghost key's secret scalar and `Hp` hashes to a prime-order
-point. The signature proves that the signer holds one of the ring's keys
+where `a` is the ghost key's secret scalar, `Hp` hashes to a prime-order
+point, and `thread_anchor` is an identifier from the thread's parameters. It
+is not the contract's address, which changes whenever the contract code does. The signature proves that the signer holds one of the ring's keys
 without showing which, and `I` is the same for every signature by that key in
 that thread. Contracts check ring members against a registry of ghost key
 certificates.
@@ -48,12 +54,31 @@ ordinary Ed25519 signatures by that key.
 The ghost key stays in the Ghostkey Vault. The application receives only
 signatures scoped to itself.
 
-### No clock
+### Catalog ordering (open problem)
 
-Contracts have no clock, so the thread catalog is ordered by a logical
-height that grows by at most one per action. Each ghost key gets a fixed
-number of catalog actions per epoch of heights, used to create a thread or
-to bump one. Threads nobody bumps sink and are pruned.
+Contracts have no clock, a timestamp supplied by a poster cannot be checked,
+and with no keeper or owner nobody can attest the time. A board still needs
+to drop old threads and keep its catalog small enough to validate.
+
+Ordering the catalog by a logical height that must be free of gaps, so that
+a forged jump ahead is refused, looks like a solution and is not. It breaks
+Freenet's merge laws: a contract must merge any two states its own
+validation accepts, and the union of an honest catalog and a forged one
+would be refused. It also lets one writer's value decide whose entries are
+discarded, which is the pattern Freenet's guidance for contract authors
+warns against.
+
+What a replacement has to satisfy:
+
+- every merge of two valid states succeeds and is order-independent;
+- a value a writer supplies ranks only that writer's own entries;
+- the catalog has a hard size bound, and stale entries eventually leave it.
+
+Under consideration: a fixed number of catalog slots per ghost key, bounded
+by a count cap on a key the entry itself determines, with ranking by
+activity done in readers instead of in the contract; and a coarse epoch
+taken from the issue month recorded in ghost key certificates, if those
+turn out to be usable as a clock. Neither is verified.
 
 ### What it does not do
 
@@ -61,6 +86,8 @@ to bump one. Threads nobody bumps sink and are pruned.
 - It cannot ban a person across threads; IDs are unlinkable by design.
 - It cannot restore removed content or overrule a vote.
 - A board cannot change its rules after creation.
+- It does not remove the central issuer: ghost keys are minted by Freenet's
+  donation service, so new posters depend on that service being available.
 
 ## Ring verification cost
 
